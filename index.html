@@ -91,7 +91,7 @@
             transform: translateX(-50%); 
             flex-direction: column; 
             text-align: center;
-            display: none; /* Only show when polaroid frame active */
+            display: none;
         }
 
         #wm-text-display { font-weight: bold; text-shadow: 1px 1px 4px rgba(0,0,0,0.5); white-space: nowrap; }
@@ -130,19 +130,41 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Kamera Khusus Styling */
+        #camera-video {
+            transition: transform 0.3s ease;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col pt-4 pb-8 px-4 md:px-8">
 
     <div id="camera-modal" class="fixed inset-0 z-50 modal-overlay hidden flex-col justify-center items-center p-4">
         <div class="bg-[#1a1d24] p-4 rounded-2xl w-full max-w-2xl border border-gray-700 shadow-2xl relative">
-            <h3 class="text-xl font-bold mb-4 text-white flex items-center"><i class="fas fa-camera mr-2 text-blue-500"></i> Jepret Foto</h3>
-            <div class="relative bg-black rounded-lg overflow-hidden flex justify-center w-full aspect-video md:aspect-auto md:h-[60vh]">
-                <video id="camera-video" autoplay playsinline class="w-full h-full object-cover scale-x-[-1]"></video>
+            
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-white flex items-center"><i class="fas fa-camera mr-2 text-blue-500"></i> Jepret Foto</h3>
+                <!-- Tombol Putar Kamera -->
+                <button id="flip-camera-btn" class="bg-gray-800 hover:bg-gray-700 text-white rounded-full p-2.5 w-10 h-10 flex items-center justify-center transition shadow-lg border border-gray-600">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
             </div>
+
+            <div class="relative bg-black rounded-lg overflow-hidden flex justify-center w-full aspect-video md:aspect-auto md:h-[60vh]">
+                <!-- Video Element (akan disesuaikan transform-nya via JS) -->
+                <video id="camera-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                
+                <!-- Kontrol Zoom Overlay -->
+                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2 bg-black/60 p-1.5 rounded-full backdrop-blur border border-white/10">
+                    <button class="cam-zoom-btn active rounded-full w-10 h-10 text-xs font-bold text-white bg-blue-600 shadow-lg" data-zoom="1">1x</button>
+                    <button class="cam-zoom-btn rounded-full w-10 h-10 text-xs font-bold text-white hover:bg-white/20 transition" data-zoom="2">2x</button>
+                    <button class="cam-zoom-btn rounded-full w-10 h-10 text-xs font-bold text-white hover:bg-white/20 transition" data-zoom="3">3x</button>
+                </div>
+            </div>
+
             <div class="mt-6 flex gap-3 justify-center">
-                <button id="close-camera-btn" class="px-5 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-semibold flex-1 md:flex-none transition-colors">Batal</button>
-                <button id="capture-btn" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold flex-1 md:flex-none flex items-center justify-center transition-colors shadow-lg shadow-blue-600/30">
+                <button id="close-camera-btn" class="px-5 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-semibold flex-1 md:flex-none transition-colors text-white">Batal</button>
+                <button id="capture-btn" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold flex-1 md:flex-none flex items-center justify-center transition-colors shadow-lg shadow-blue-600/30 text-white">
                     <i class="fas fa-dot-circle mr-2"></i> Ambil Gambar
                 </button>
             </div>
@@ -171,6 +193,7 @@
 
     <main class="flex-grow w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
         
+        <!-- Sisi Kiri: Editor Visual -->
         <div class="lg:col-span-7 flex flex-col gap-4">
             
             <div id="canvas-wrapper">
@@ -204,6 +227,7 @@
                 </div>
             </div>
 
+            <!-- Tombol Auto Enhance -->
             <div class="flex justify-between items-center bg-[#1a1d24] p-3 rounded-xl border border-gray-800 shadow-sm">
                 <button id="auto-enhance-btn" class="bg-gray-800 hover:bg-gray-700 text-gray-200 py-2 px-4 rounded-lg flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium border border-gray-700" disabled>
                     <i class="fas fa-wand-magic-sparkles mr-2 text-yellow-500"></i> Auto Enhance
@@ -247,19 +271,18 @@
 
                     <!-- TAB 2: FRAMES & POLAROID TEXT -->
                     <div id="panel-frames" class="panel-content">
-                        <p class="text-xs text-gray-400 mb-4 leading-relaxed">Tambahkan batas fisik. Fitur Teks Mesin Ketik akan aktif jika Anda memilih gaya Polaroid.</p>
+                        <p class="text-xs text-gray-400 mb-4 leading-relaxed">Tambahkan batas fisik. Fitur Teks Mesin Ketik aktif jika Anda memilih gaya Polaroid.</p>
                         <div class="grid grid-cols-2 gap-4 mb-6" id="frame-list"></div>
                         
-                        <!-- Frame Size Adjustment (Newly Added) -->
+                        <!-- Frame Size Adjustment -->
                         <div id="frame-size-settings" class="hidden mb-6 pt-5 border-t border-gray-800">
                              <label class="block text-xs font-medium text-gray-400 mb-1.5 flex justify-between">
                                 <span>Ketebalan Bingkai</span> <span id="frame-scale-val" class="text-emerald-400">Normal</span>
                             </label>
-                            <!-- Range for frame scaling multiplier (0.5 to 2.0) -->
                             <input type="range" id="frame-scale" min="50" max="250" value="100">
                         </div>
 
-                        <!-- Polaroid Text Settings (Hidden by default) -->
+                        <!-- Polaroid Text Settings -->
                         <div id="polaroid-text-settings" class="hidden space-y-4 pt-5 border-t border-gray-800">
                             <h4 class="text-sm font-semibold text-white flex items-center mb-2">
                                 <i class="fas fa-keyboard text-emerald-500 mr-2"></i> Teks Mesin Ketik
@@ -357,6 +380,7 @@
                     </div>
                 </div>
 
+                <!-- Tombol Download Ekspor -->
                 <div class="p-4 border-t border-gray-800 bg-[#16181d]">
                     <button id="download-btn" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-3.5 px-4 rounded-xl font-bold shadow-lg shadow-indigo-900/20 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                         <i class="fas fa-download mr-2"></i> Ekspor High-Res
@@ -374,14 +398,14 @@
             
             currentFilter: 'normal',
             currentFrame: 'none',
-            frameScaleMultiplier: 1, // Menyimpan multiplier dari slider padding bingkai
+            frameScaleMultiplier: 1, 
             isAutoEnhanced: false,
             enhance: { brightness: 1, contrast: 1, saturation: 1 },
             
             wm: {
                 type: 'text', 
                 opacity: 0.8,
-                x: 5, y: 5, // Persentase dari 0-100
+                x: 5, y: 5,
                 text: 'Rimpang',
                 color: '#ffffff',
                 sizePct: 4, 
@@ -400,6 +424,15 @@
             }
         };
 
+        // State Khusus Kamera (Baru)
+        const camState = {
+            stream: null,
+            track: null,
+            facingMode: 'environment', // 'user' atau 'environment'
+            zoom: 1,
+            nativeZoomSupported: false
+        };
+
         const els = {
             uploadInput: document.getElementById('image-upload'),
             btnOpenCamera: document.getElementById('open-camera-btn'),
@@ -411,10 +444,14 @@
             ctx: document.getElementById('main-canvas').getContext('2d', { willReadFrequently: true }),
             placeholder: document.getElementById('placeholder-content'),
             
+            // Camera Elements
             camModal: document.getElementById('camera-modal'),
             camVideo: document.getElementById('camera-video'),
             btnCapture: document.getElementById('capture-btn'),
             btnCloseCam: document.getElementById('close-camera-btn'),
+            btnFlipCam: document.getElementById('flip-camera-btn'),
+            camZoomBtns: document.querySelectorAll('.cam-zoom-btn'),
+            
             loadingOverlay: document.getElementById('loading-overlay'),
             loadingText: document.getElementById('loading-text'),
             
@@ -424,20 +461,17 @@
             dragWM: document.getElementById('draggable-watermark'),
             dragPT: document.getElementById('draggable-polaroid-text'),
             
-            // WM Displays
+            // Displays
             wmTextDisplay: document.getElementById('wm-text-display'),
             wmLogoDisplay: document.getElementById('wm-logo-display'),
-            
-            // PT Displays
             ptCaptionDisplay: document.getElementById('pt-caption-display'),
             ptLocDateDisplay: document.getElementById('pt-locdate-display'),
             
-            // Tabs
+            // Tabs & Input UI...
             mainTabs: document.querySelectorAll('.main-tab-btn'),
             panels: document.querySelectorAll('.panel-content'),
             wmTabs: document.querySelectorAll('.tab-btn'),
             
-            // WM Inputs
             wmOptText: document.getElementById('wm-opt-text'),
             wmOptLogo: document.getElementById('wm-opt-logo'),
             inText: document.getElementById('wm-text'),
@@ -453,7 +487,6 @@
             inOpacity: document.getElementById('wm-opacity'),
             valOpacity: document.getElementById('wm-opacity-val'),
             
-            // PT Inputs
             ptSettings: document.getElementById('polaroid-text-settings'),
             inPtCap: document.getElementById('pt-caption'),
             inPtLoc: document.getElementById('pt-loc'),
@@ -462,7 +495,6 @@
             valPtSize: document.getElementById('pt-size-val'),
             inPtColor: document.getElementById('pt-color'),
 
-            // Frame Size Input
             frameSettings: document.getElementById('frame-size-settings'),
             inFrameScale: document.getElementById('frame-scale'),
             valFrameScale: document.getElementById('frame-scale-val'),
@@ -471,8 +503,6 @@
             frameList: document.getElementById('frame-list'),
             catBtns: document.querySelectorAll('.cat-btn')
         };
-
-        let camStream = null; 
 
         const filters = [
             { id: 'normal', name: 'Original', cat: 'all', css: 'none' },
@@ -511,7 +541,6 @@
             { id: 'c_warm_cine', name: 'Cine Warm', cat: 'cine', css: 'contrast(1.1) saturate(1.3) sepia(0.25) brightness(1.05)' }
         ];
 
-        // Base padding (proportions relative to image dimensions)
         const frames = [
             { id: 'none', name: 'Tanpa Bingkai', type: 'none' },
             { id: 'polaroid_white', name: 'Polaroid Putih', type: 'polaroid', bg: '#ffffff', pad: {t: 0.05, r: 0.05, l: 0.05, b: 0.22} },
@@ -592,7 +621,6 @@
                     btn.classList.add('active');
                     state.currentFrame = f.id;
                     
-                    // Reset slider ketebalan bingkai ke default 100 saat berganti bingkai
                     state.frameScaleMultiplier = 1;
                     els.inFrameScale.value = 100;
                     els.valFrameScale.textContent = "Normal";
@@ -606,8 +634,6 @@
         
         function checkFrameDependencies() {
             const frame = frames.find(f => f.id === state.currentFrame);
-            
-            // Show/Hide Polaroid Text Settings
             if (frame && frame.type === 'polaroid') {
                 els.ptSettings.classList.remove('hidden');
                 els.dragPT.style.display = 'flex';
@@ -616,13 +642,11 @@
                 els.dragPT.style.display = 'none';
             }
 
-            // Show/Hide Frame Size settings (only valid if frame is not 'none')
             if (frame && frame.id !== 'none') {
                 els.frameSettings.classList.remove('hidden');
             } else {
                 els.frameSettings.classList.add('hidden');
             }
-
             updateOverlaysDOM();
         }
         
@@ -637,7 +661,6 @@
         renderFilters();
         renderFrames();
 
-        // Watermark Inputs
         els.inText.addEventListener('input', e => { state.wm.text = e.target.value; updateOverlaysDOM(); });
         els.inColorPicker.addEventListener('input', e => { state.wm.color = e.target.value; els.inColor.value = e.target.value; updateOverlaysDOM(); });
         els.inColor.addEventListener('change', e => { 
@@ -660,7 +683,6 @@
         els.inLogoScale.addEventListener('input', e => { state.wm.logoScalePct = parseInt(e.target.value); els.valLogoScale.textContent = `${e.target.value}%`; updateOverlaysDOM(); });
         els.inOpacity.addEventListener('input', e => { state.wm.opacity = parseInt(e.target.value) / 100; els.valOpacity.textContent = `${e.target.value}%`; updateOverlaysDOM(); });
 
-        // Polaroid Text Inputs
         const updatePt = () => {
             state.pText.caption = els.inPtCap.value;
             state.pText.location = els.inPtLoc.value;
@@ -674,19 +696,15 @@
         els.inPtSize.addEventListener('input', e => { state.pText.sizePct = parseFloat(e.target.value); els.valPtSize.textContent = `${state.pText.sizePct}%`; updateOverlaysDOM(); });
         els.inPtColor.addEventListener('input', e => { state.pText.color = e.target.value; updateOverlaysDOM(); });
 
-        // Frame Size Slider Input
         els.inFrameScale.addEventListener('input', e => {
-            state.frameScaleMultiplier = parseInt(e.target.value) / 100; // e.g., 150 -> 1.5
-            
+            state.frameScaleMultiplier = parseInt(e.target.value) / 100;
             let labelText = "Normal";
             if(state.frameScaleMultiplier < 1) labelText = "Tipis";
             if(state.frameScaleMultiplier > 1) labelText = "Tebal";
             if(state.frameScaleMultiplier === 1) labelText = "Normal";
             els.valFrameScale.textContent = `${Math.round(state.frameScaleMultiplier * 100)}%`;
-            
-            drawCanvas(); // Render ulang dengan ketebalan bingkai baru
+            drawCanvas(); 
         });
-
 
         function enableControls() {
             els.placeholder.style.display = 'none';
@@ -747,7 +765,6 @@
             const frame = frames.find(f => f.id === state.currentFrame);
             if (frame && frame.id !== 'none') {
                 if (frame.pad === 'square') {
-                    // For square, scale by the multiplier. Base is 1.1x the max side.
                     const baseSize = Math.max(img.width, img.height);
                     const padding = (baseSize * 0.1) * state.frameScaleMultiplier;
                     const size = baseSize + padding;
@@ -755,7 +772,6 @@
                     finalW = size; finalH = size;
                     drawX = (size - img.width) / 2; drawY = (size - img.height) / 2;
                 } else {
-                    // Apply frameScaleMultiplier to padding
                     const pt = (img.height * frame.pad.t) * state.frameScaleMultiplier; 
                     const pb = (img.height * frame.pad.b) * state.frameScaleMultiplier;
                     const pl = (img.width * frame.pad.l) * state.frameScaleMultiplier; 
@@ -863,7 +879,6 @@
                 const locDateStr = [state.pText.location, state.pText.date].filter(Boolean).join(' • ');
                 els.ptLocDateDisplay.textContent = locDateStr;
                 
-                // Centering translation via CSS transform (-50%)
                 const ptXPx = offsetX + ((state.pText.x / 100) * canvasRect.width);
                 const ptYPx = offsetY + ((state.pText.y / 100) * canvasRect.height);
                 els.dragPT.style.left = `${ptXPx}px`;
@@ -873,13 +888,12 @@
             }
         }
 
-        // --- Multi Drag Logic ---
         let activeDragTarget = null;
         let startCursorX, startCursorY, startObjX, startObjY;
 
         function dragStart(e) {
             if(!state.originalImage) return;
-            activeDragTarget = e.currentTarget.dataset.target; // 'wm' or 'polaroid'
+            activeDragTarget = e.currentTarget.dataset.target; 
             e.currentTarget.classList.add('dragging');
             
             const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
@@ -906,7 +920,6 @@
             let pctX = ((newX - offsetX) / canvasRect.width) * 100;
             let pctY = ((newY - offsetY) / canvasRect.height) * 100;
             
-            // Save state based on target
             if (activeDragTarget === 'wm') {
                 state.wm.x = Math.max(0, Math.min(pctX, 100));
                 state.wm.y = Math.max(0, Math.min(pctY, 100));
@@ -932,27 +945,158 @@
         window.addEventListener('touchmove', dragMove, {passive: false});
         window.addEventListener('touchend', dragEnd);
 
-        els.btnOpenCamera.addEventListener('click', async () => {
+
+        
+        async function initCamera() {
             try {
-                camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                els.camVideo.srcObject = camStream;
-                els.camModal.classList.remove('hidden'); els.camModal.classList.add('flex');
-            } catch (err) { alert("Izin kamera ditolak atau tidak tersedia."); }
+                if (camState.stream) {
+                    camState.stream.getTracks().forEach(t => t.stop());
+                }
+
+                const constraints = {
+                    video: { 
+                        facingMode: camState.facingMode,
+                        // Resolusi ideal untuk portrait/landscape (browser akan menyesuaikan otomatis)
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+
+                camState.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                els.camVideo.srcObject = camState.stream;
+                camState.track = camState.stream.getVideoTracks()[0];
+
+                // Cek Kapabilitas Native Zoom
+                const capabilities = camState.track.getCapabilities();
+                camState.nativeZoomSupported = 'zoom' in capabilities;
+
+                // Terapkan efek mirror CSS HANYA untuk tampilan pratinjau kamera depan
+                if (camState.facingMode === 'user') {
+                    els.camVideo.style.transform = `scaleX(-1) scale(${camState.zoom})`;
+                } else {
+                    els.camVideo.style.transform = `scaleX(1) scale(${camState.zoom})`;
+                }
+                
+                applyZoom(camState.zoom);
+                
+                els.camModal.classList.remove('hidden'); 
+                els.camModal.classList.add('flex');
+
+            } catch (err) {
+                console.warn(err);
+                alert("Izin kamera ditolak atau perangkat tidak mendukung. Gunakan upload file sebagai alternatif.");
+                closeCamera();
+            }
+        }
+
+        async function applyZoom(zoomValue) {
+            camState.zoom = zoomValue;
+            
+            // Perbarui tombol UI
+            els.camZoomBtns.forEach(btn => {
+                if(parseInt(btn.dataset.zoom) === zoomValue) {
+                    btn.classList.add('bg-blue-600', 'active');
+                    btn.classList.remove('hover:bg-white/20');
+                } else {
+                    btn.classList.remove('bg-blue-600', 'active');
+                    btn.classList.add('hover:bg-white/20');
+                }
+            });
+
+            try {
+                // Mencoba Optical/Native Zoom bawaan jika didukung
+                if (camState.nativeZoomSupported && camState.track) {
+                    await camState.track.applyConstraints({ advanced: [{ zoom: zoomValue }] });
+                    // Hilangkan digital CSS zoom karena native sudah bekerja
+                    els.camVideo.style.transform = camState.facingMode === 'user' ? `scaleX(-1) scale(1)` : `scaleX(1) scale(1)`;
+                } else {
+                    // Fallback Digital Zoom (CSS)
+                    els.camVideo.style.transform = camState.facingMode === 'user' ? `scaleX(-1) scale(${zoomValue})` : `scaleX(1) scale(${zoomValue})`;
+                }
+            } catch(e) {
+                // Jika error applyConstraint, paksa fallback CSS
+                els.camVideo.style.transform = camState.facingMode === 'user' ? `scaleX(-1) scale(${zoomValue})` : `scaleX(1) scale(${zoomValue})`;
+            }
+        }
+
+        els.btnOpenCamera.addEventListener('click', () => {
+            // Reset state saat membuka kamera
+            camState.zoom = 1;
+            initCamera();
+        });
+
+        // Tombol Flip (Selfie / Belakang)
+        els.btnFlipCam.addEventListener('click', () => {
+            camState.facingMode = camState.facingMode === 'user' ? 'environment' : 'user';
+            initCamera();
+        });
+
+        // Tombol Zoom (1x, 2x, 3x)
+        els.camZoomBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const z = parseInt(e.target.dataset.zoom);
+                applyZoom(z);
+            });
         });
 
         function closeCamera() {
-            if(camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
-            els.camModal.classList.add('hidden'); els.camModal.classList.remove('flex');
+            if(camState.stream) { 
+                camState.stream.getTracks().forEach(t => t.stop()); 
+                camState.stream = null; 
+            }
+            els.camModal.classList.add('hidden'); 
+            els.camModal.classList.remove('flex');
         }
+        
         els.btnCloseCam.addEventListener('click', closeCamera);
 
+        // Eksekusi Jepret Foto
         els.btnCapture.addEventListener('click', () => {
             showLoading("Menangkap...");
-            const temp = document.createElement('canvas');
-            temp.width = els.camVideo.videoWidth; temp.height = els.camVideo.videoHeight;
-            temp.getContext('2d').drawImage(els.camVideo, 0, 0);
-            closeCamera(); processNewImage(temp.toDataURL('image/jpeg', 1.0));
+            
+            try {
+                const tempCanvas = document.createElement('canvas');
+                const tCtx = tempCanvas.getContext('2d');
+                const vW = els.camVideo.videoWidth; 
+                const vH = els.camVideo.videoHeight;
+                
+                // Set ukuran awal
+                tempCanvas.width = vW; 
+                tempCanvas.height = vH;
+
+                // Hitung crop digital jika native zoom gagal/tidak didukung
+                let sX = 0, sY = 0, sW = vW, sH = vH;
+                if (!camState.nativeZoomSupported || camState.zoom > 1) {
+                    // Cek transform CSS untuk memastikan apakah sedang fallback
+                    if (els.camVideo.style.transform.includes(`scale(${camState.zoom})`)) {
+                        sW = vW / camState.zoom;
+                        sH = vH / camState.zoom;
+                        sX = (vW - sW) / 2;
+                        sY = (vH - sH) / 2;
+                        tempCanvas.width = sW;
+                        tempCanvas.height = sH;
+                    }
+                }
+
+                // Handle Mirroring untuk Kamera Depan agar hasilnya tidak terbalik
+                if (camState.facingMode === 'user') {
+                    tCtx.translate(tempCanvas.width, 0);
+                    tCtx.scale(-1, 1);
+                }
+
+                // Gambar frame
+                tCtx.drawImage(els.camVideo, sX, sY, sW, sH, 0, 0, tempCanvas.width, tempCanvas.height);
+                
+                const dataUrl = tempCanvas.toDataURL('image/jpeg', 1.0);
+                closeCamera(); 
+                processNewImage(dataUrl);
+
+            } catch(e) {
+                alert("Terjadi kesalahan saat memproses gambar.");
+                hideLoading();
+            }
         });
+
 
         els.btnDownload.addEventListener('click', () => {
             if(!state.originalImage) return;
@@ -964,7 +1108,7 @@
                 expCanvas.height = els.canvas.height;
                 const eCtx = expCanvas.getContext('2d');
                 
-                // Copy base rendered image (photo + frame + filters)
+                // Copy base rendered image
                 eCtx.drawImage(els.canvas, 0, 0);
                 const ratioCompensation = expCanvas.width / els.canvas.clientWidth;
                 
@@ -982,7 +1126,7 @@
                     eCtx.shadowColor = `rgba(0, 0, 0, 0.6)`;
                     eCtx.shadowBlur = 4 * ratioCompensation; eCtx.shadowOffsetX = 1 * ratioCompensation; eCtx.shadowOffsetY = 1 * ratioCompensation;
                     eCtx.fillText(state.wm.text, wxPx + wPad, wyPx + wPad);
-                    eCtx.shadowColor = 'transparent'; // reset shadow
+                    eCtx.shadowColor = 'transparent'; 
                 } else if (state.wm.type === 'logo' && state.wm.logoImg) {
                     const wLogo = expCanvas.width * (state.wm.logoScalePct / 100);
                     const hLogo = wLogo * (state.wm.logoImg.height / state.wm.logoImg.width);
@@ -992,7 +1136,7 @@
                 }
                 eCtx.globalAlpha = 1.0;
                 
-                // 2. Draw Polaroid Text (if applicable)
+                // 2. Draw Polaroid Text
                 const frame = frames.find(f => f.id === state.currentFrame);
                 if (frame && frame.type === 'polaroid' && (state.pText.caption || state.pText.date || state.pText.location)) {
                     const px = (state.pText.x / 100) * expCanvas.width;
@@ -1001,26 +1145,23 @@
                     
                     eCtx.font = `${pFontSize}px 'Special Elite', monospace`;
                     eCtx.fillStyle = state.pText.color;
-                    eCtx.textAlign = 'center'; // Center horizontally around px
+                    eCtx.textAlign = 'center'; 
                     eCtx.textBaseline = 'top';
                     
                     let currentY = py + wPad;
-                    // Draw Caption (bold simulation if needed, but Special Elite has 1 weight usually, we keep it uniform)
                     if (state.pText.caption) {
                         eCtx.font = `bold ${pFontSize}px 'Special Elite', monospace`;
                         eCtx.fillText(state.pText.caption, px, currentY);
                         currentY += pFontSize * 1.3;
                     }
                     
-                    // Draw Location/Date
                     const locDate = [state.pText.location, state.pText.date].filter(Boolean).join(' • ');
                     if (locDate) {
-                        eCtx.font = `${pFontSize * 0.85}px 'Special Elite', monospace`; // Slightly smaller
+                        eCtx.font = `${pFontSize * 0.85}px 'Special Elite', monospace`; 
                         eCtx.fillText(locDate, px, currentY);
                     }
                 }
                 
-                // Download execution
                 try {
                     const link = document.createElement('a');
                     link.download = `Rimpang_${Date.now()}.jpg`;
