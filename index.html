@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lumière Studio - Pro Photo Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #e5e5e5;
+        }
+
+        .title-font {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Container Kanvas - Responsif dan menahan aspect ratio gambar */
+        #canvas-wrapper {
+            position: relative;
+            width: 100%;
+            background-image: radial-gradient(circle, #2d2d2d 0%, #1a1a1a 100%);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+        }
+
+        /* Canvas utama akan menyesuaikan ukuran layar tapi menyimpan resolusi asli di belakang layar */
+        #main-canvas {
+            max-width: 100%;
+            max-height: 65vh; /* Mencegah kanvas terlalu tinggi di mobile */
+            object-fit: contain;
+            display: none; 
+            transition: filter 0.3s ease;
+        }
+
+        /* Layer Drag Watermark */
+        #watermark-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Klik tembus ke bawah */
+            display: none; 
+        }
+
+        #draggable-watermark {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: auto; /* Bisa digeser */
+            cursor: move;
+            user-select: none;
+            touch-action: none; /* Penting untuk mobile agar tidak scroll saat drag */
+            padding: 4px;
+            border: 1.5px dashed transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: border 0.2s;
+            transform-origin: top left;
+        }
+
+        #draggable-watermark:hover, #draggable-watermark.dragging {
+            border-color: rgba(59, 130, 246, 0.8); /* Blue-500 border saat aktif */
+            background-color: rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+
+        /* Teks Watermark Styling */
+        #wm-text-display {
+            font-weight: bold;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+            white-space: nowrap;
+        }
+
+        /* Logo Watermark Styling */
+        #wm-logo-display {
+            display: none;
+            max-width: none; /* Dikontrol via JS */
+            filter: drop-shadow(1px 1px 3px rgba(0,0,0,0.4));
+        }
+
+        /* Scrollbar Kustom */
+        .custom-scroll::-webkit-scrollbar { height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #1f2937; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+        /* Style Tab/Button */
+        .filter-btn { transition: all 0.2s; border: 2px solid transparent; }
+        .filter-btn.active { border-color: #3b82f6; background-color: rgba(59, 130, 246, 0.15); }
+        
+        .tab-btn { transition: all 0.2s; border-bottom: 2px solid transparent; }
+        .tab-btn.active { border-bottom-color: #3b82f6; color: #3b82f6; font-weight: 600; }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; width: 100%; background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #3b82f6; cursor: pointer; margin-top: -7px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer; background: #4b5563; border-radius: 2px;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+        }
+
+        /* Spinner */
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.1); width: 40px; height: 40px;
+            border-radius: 50%; border-left-color: #3b82f6;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body class="min-h-screen flex flex-col pt-4 pb-12 px-3 md:px-8">
+
+    <!-- Modal Kamera -->
+    <div id="camera-modal" class="fixed inset-0 z-50 modal-overlay hidden flex-col justify-center items-center p-4">
+        <div class="bg-gray-900 p-4 rounded-2xl w-full max-w-2xl border border-gray-700 shadow-2xl relative">
+            <h3 class="text-xl font-bold mb-4 text-white flex items-center"><i class="fas fa-camera mr-2 text-blue-500"></i> Ambil Foto</h3>
+            <div class="relative bg-black rounded-lg overflow-hidden flex justify-center w-full aspect-video md:aspect-auto md:h-[60vh]">
+                <video id="camera-video" autoplay playsinline class="w-full h-full object-cover scale-x-[-1]"></video> <!-- Scale x-1 untuk efek cermin -->
+            </div>
+            <div class="mt-6 flex gap-3 justify-center">
+                <button id="close-camera-btn" class="px-5 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-semibold flex-1 md:flex-none transition-colors">Batal</button>
+                <button id="capture-btn" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold flex-1 md:flex-none flex items-center justify-center transition-colors shadow-lg shadow-blue-600/30">
+                    <i class="fas fa-dot-circle mr-2"></i> Jepret
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="mb-6 text-center">
+        <h1 class="text-3xl md:text-5xl font-bold title-font text-white mb-2 tracking-wide">
+            <i class="fas fa-camera-retro text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mr-2"></i>Lumière
+        </h1>
+        <p class="text-gray-400 text-sm md:text-base">Pro Photo Editor & Watermark Engine</p>
+    </header>
+
+    <main class="flex-grow w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Kolom Kiri: Kanvas & Aksi (Lebar 8 kolom di desktop) -->
+        <div class="lg:col-span-8 flex flex-col gap-4">
+            
+            <!-- Aksi Utama (Upload, Kamera, Enhance) -->
+            <div class="bg-gray-800 p-3 md:p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3 border border-gray-700/50 shadow-lg">
+                <div class="flex w-full md:w-auto gap-2">
+                    <div class="relative flex-1 md:flex-none">
+                        <input type="file" id="image-upload" accept="image/*" class="hidden">
+                        <label for="image-upload" class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-xl flex items-center justify-center transition-colors text-sm font-semibold w-full">
+                            <i class="fas fa-folder-open mr-2"></i> File
+                        </label>
+                    </div>
+                    <button id="open-camera-btn" class="bg-gray-700 hover:bg-gray-600 text-white py-2.5 px-4 rounded-xl flex items-center justify-center transition-colors text-sm font-semibold flex-1 md:flex-none">
+                        <i class="fas fa-camera mr-2"></i> Kamera
+                    </button>
+                </div>
+                
+                <button id="auto-enhance-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-5 rounded-xl flex items-center justify-center transition-all w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold shadow-lg shadow-emerald-900/20" disabled>
+                    <i class="fas fa-wand-magic-sparkles mr-2"></i> Auto Enhance
+                </button>
+            </div>
+
+            <!-- Area Kanvas -->
+            <div id="canvas-wrapper">
+                <div id="placeholder-content" class="text-gray-500 flex flex-col items-center p-8 text-center">
+                    <div class="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center mb-4 shadow-inner">
+                        <i class="fas fa-image text-3xl text-gray-600"></i>
+                    </div>
+                    <p class="font-medium text-gray-300">Belum ada foto</p>
+                    <p class="text-sm mt-1">Unggah file atau gunakan kamera untuk memulai</p>
+                </div>
+                
+                <canvas id="main-canvas"></canvas>
+                
+                <div id="watermark-layer">
+                    <div id="draggable-watermark">
+                        <span id="wm-text-display">Lumière</span>
+                        <img id="wm-logo-display" src="" alt="Logo Watermark">
+                    </div>
+                </div>
+
+                <div id="loading-overlay" class="absolute inset-0 bg-black/80 flex-col justify-center items-center z-10 hidden backdrop-blur-sm">
+                    <div class="spinner mb-3"></div>
+                    <p class="text-sm font-medium text-gray-200" id="loading-text">Memproses Resolusi Tinggi...</p>
+                </div>
+            </div>
+
+            <!-- Daftar Filter (Di bawah kanvas pada mobile, tetap di kiri pada desktop) -->
+            <div class="bg-gray-800 p-4 rounded-2xl border border-gray-700/50 shadow-lg">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-film text-gray-400 mr-2"></i>
+                    <h3 class="text-md font-semibold text-gray-200">Gaya & Profil Warna</h3>
+                </div>
+                
+                <!-- Kategori Filter -->
+                <div class="flex gap-2 mb-4 overflow-x-auto custom-scroll pb-2" id="filter-categories">
+                    <button class="cat-btn bg-blue-600 px-4 py-1.5 rounded-full text-xs font-semibold active whitespace-nowrap" data-cat="all">Semua</button>
+                    <button class="cat-btn bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap" data-cat="kodak">Kodak</button>
+                    <button class="cat-btn bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap" data-cat="fuji">Fujifilm</button>
+                    <button class="cat-btn bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap" data-cat="leica">Leica</button>
+                    <button class="cat-btn bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap" data-cat="cine">Cinematic</button>
+                    <button class="cat-btn bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap" data-cat="vintage">Vintage</button>
+                </div>
+
+                <!-- Horizontal Scroll untuk Thumbnail Filter -->
+                <div class="flex gap-3 overflow-x-auto custom-scroll pb-3 pt-1" id="filter-list">
+                    <!-- Javascript will inject here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Pengaturan Watermark & Ekspor (Lebar 4 kolom) -->
+        <div class="lg:col-span-4 flex flex-col gap-4">
+            
+            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700/50 shadow-lg flex-grow">
+                <h3 class="text-lg font-bold mb-4 flex items-center text-white"><i class="fas fa-stamp text-blue-500 mr-2"></i> Pengaturan Watermark</h3>
+                
+                <!-- Tab Pilihan Tipe Watermark -->
+                <div class="flex mb-5 border-b border-gray-700">
+                    <button class="tab-btn flex-1 pb-2 active text-sm" data-target="panel-text">Teks</button>
+                    <button class="tab-btn flex-1 pb-2 text-gray-400 text-sm" data-target="panel-logo">Gambar/Logo</button>
+                </div>
+
+                <!-- PANEL: TEKS -->
+                <div id="panel-text" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Teks Watermark</label>
+                        <input type="text" id="wm-text" value="Lumière" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" disabled>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Warna</label>
+                        <div class="flex gap-2">
+                            <input type="color" id="wm-color-picker" value="#ffffff" class="w-11 h-11 p-0 border-0 rounded-lg cursor-pointer bg-transparent" disabled>
+                            <input type="text" id="wm-color" value="#ffffff" class="flex-grow bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono text-sm uppercase" disabled>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider flex justify-between">
+                            <span>Ukuran Teks</span> <span id="wm-size-val" class="text-blue-400">120</span>
+                        </label>
+                        <input type="range" id="wm-size" min="20" max="500" value="120" disabled>
+                        <p class="text-[10px] text-gray-500 mt-1">Ukuran dihitung berdasarkan resolusi asli foto.</p>
+                    </div>
+                </div>
+
+                <!-- PANEL: LOGO -->
+                <div id="panel-logo" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Upload Logo (PNG/JPG)</label>
+                        <input type="file" id="logo-upload" accept="image/png, image/jpeg, image/webp" class="hidden" disabled>
+                        <label for="logo-upload" id="logo-upload-label" class="cursor-pointer border-2 border-dashed border-gray-600 hover:border-blue-500 rounded-xl p-4 flex flex-col items-center justify-center transition-colors text-gray-400 opacity-50 pointer-events-none">
+                            <i class="fas fa-cloud-upload-alt text-2xl mb-2"></i>
+                            <span class="text-sm text-center" id="logo-file-name">Pilih file logo transparan...</span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider flex justify-between">
+                            <span>Skala Logo (%)</span> <span id="wm-logo-scale-val" class="text-blue-400">20%</span>
+                        </label>
+                        <input type="range" id="wm-logo-scale" min="5" max="100" value="20" disabled>
+                        <p class="text-[10px] text-gray-500 mt-1">Persentase relatif terhadap lebar foto asli.</p>
+                    </div>
+                </div>
+
+                <!-- KONTROL UMUM (Opacity & Posisi) -->
+                <div class="mt-5 pt-5 border-t border-gray-700 space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider flex justify-between">
+                            <span>Opasitas (Transparansi)</span> <span id="wm-opacity-val" class="text-blue-400">80%</span>
+                        </label>
+                        <input type="range" id="wm-opacity" min="0" max="100" value="80" disabled>
+                    </div>
+                    
+                    <div class="bg-blue-900/20 border border-blue-900/50 rounded-lg p-3 flex items-start gap-3">
+                        <i class="fas fa-hand-pointer text-blue-400 mt-1"></i>
+                        <p class="text-xs text-blue-200 leading-relaxed">Tata Letak: Sentuh/Klik dan geser watermark langsung pada area kanvas foto untuk mengatur posisinya.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Box Ekspor -->
+            <div class="bg-gradient-to-br from-blue-900 to-gray-900 p-5 rounded-2xl border border-blue-800/50 shadow-xl relative overflow-hidden">
+                <!-- Ornamen dekoratif -->
+                <div class="absolute -right-4 -bottom-4 opacity-10">
+                    <i class="fas fa-camera text-9xl"></i>
+                </div>
+                
+                <h3 class="text-lg font-bold mb-2 text-white relative z-10">Simpan Karya Anda</h3>
+                <p class="text-xs text-blue-200 mb-4 relative z-10">Foto diekspor dalam resolusi tinggi asli (High-Res) tanpa penurunan kualitas.</p>
+                
+                <button id="download-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 px-4 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 relative z-10" disabled>
+                    <i class="fas fa-download mr-2"></i> Unduh High-Res
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- 1. STATE MANAGEMENT ---
+        const state = {
+            originalImage: null,  // Obj Image asli (High Res)
+            displayRatio: 1,      // Rasio antara canvas tampilan dan canvas asli
+            
+            // Filter & Enhance
+            currentFilter: 'normal',
+            isAutoEnhanced: false,
+            enhance: { brightness: 1, contrast: 1, saturation: 1 },
+            
+            // Watermark
+            wm: {
+                type: 'text', // 'text' atau 'logo'
+                opacity: 0.8,
+                x: 5, y: 5, // persentase posisi (0-100)
+                
+                // Text specific
+                text: 'Lumière',
+                color: '#ffffff',
+                textSizePx: 120, // Ukuran font pada resolusi ASLI
+                
+                // Logo specific
+                logoImg: null, // Obj Image logo
+                logoScalePct: 20 // Persentase lebar logo terhadap lebar foto asli
+            }
+        };
+
+        // --- 2. DOM ELEMENTS ---
+        const els = {
+            // Main Controls
+            uploadInput: document.getElementById('image-upload'),
+            btnOpenCamera: document.getElementById('open-camera-btn'),
+            btnEnhance: document.getElementById('auto-enhance-btn'),
+            btnDownload: document.getElementById('download-btn'),
+            
+            // Canvas
+            canvasWrapper: document.getElementById('canvas-wrapper'),
+            canvas: document.getElementById('main-canvas'),
+            ctx: document.getElementById('main-canvas').getContext('2d', { willReadFrequently: true }),
+            placeholder: document.getElementById('placeholder-content'),
+            
+            // Camera
+            camModal: document.getElementById('camera-modal'),
+            camVideo: document.getElementById('camera-video'),
+            btnCapture: document.getElementById('capture-btn'),
+            btnCloseCam: document.getElementById('close-camera-btn'),
+            
+            // Loading
+            loadingOverlay: document.getElementById('loading-overlay'),
+            loadingText: document.getElementById('loading-text'),
+            
+            // Watermark Layer & Drag
+            wmLayer: document.getElementById('watermark-layer'),
+            wmDragBox: document.getElementById('draggable-watermark'),
+            wmTextDisplay: document.getElementById('wm-text-display'),
+            wmLogoDisplay: document.getElementById('wm-logo-display'),
+            
+            // Watermark Inputs
+            wmTabs: document.querySelectorAll('.tab-btn'),
+            wmPanels: { text: document.getElementById('panel-text'), logo: document.getElementById('panel-logo') },
+            inText: document.getElementById('wm-text'),
+            inColor: document.getElementById('wm-color'),
+            inColorPicker: document.getElementById('wm-color-picker'),
+            inTextSize: document.getElementById('wm-size'),
+            valTextSize: document.getElementById('wm-size-val'),
+            inLogo: document.getElementById('logo-upload'),
+            lblLogo: document.getElementById('logo-upload-label'),
+            txtLogoName: document.getElementById('logo-file-name'),
+            inLogoScale: document.getElementById('wm-logo-scale'),
+            valLogoScale: document.getElementById('wm-logo-scale-val'),
+            inOpacity: document.getElementById('wm-opacity'),
+            valOpacity: document.getElementById('wm-opacity-val'),
+            
+            // Filters
+            filterList: document.getElementById('filter-list'),
+            catBtns: document.querySelectorAll('.cat-btn')
+        };
+        
+        let camStream = null; // Menyimpan stream kamera aktif
+
+        // --- 3. FILTER DEFINITIONS (Simulasi 60 Profil - diringkas untuk performa, logika sama) ---
+        // Menggunakan paduan filter CSS standar
+        const filters = [
+            { id: 'normal', name: 'Original', cat: 'all', css: 'none' },
+            // Kodak
+            { id: 'k_portra400', name: 'Portra 400', cat: 'kodak', css: 'contrast(1.05) saturate(1.1) sepia(0.1) hue-rotate(-5deg)' },
+            { id: 'k_gold200', name: 'Gold 200', cat: 'kodak', css: 'contrast(1.1) saturate(1.2) sepia(0.2) hue-rotate(5deg)' },
+            { id: 'k_tmax', name: 'T-Max B&W', cat: 'kodak', css: 'grayscale(1) contrast(1.2) brightness(0.95)' },
+            { id: 'k_ektar', name: 'Ektar 100', cat: 'kodak', css: 'contrast(1.2) saturate(1.4) hue-rotate(-5deg)' },
+            { id: 'k_vision3', name: 'Vision3 500T', cat: 'kodak', css: 'contrast(0.9) saturate(0.8) hue-rotate(-10deg) brightness(1.1)' },
+            // Fuji
+            { id: 'f_provia', name: 'Provia', cat: 'fuji', css: 'contrast(1.1) saturate(1.1) brightness(1.02)' },
+            { id: 'f_velvia', name: 'Velvia', cat: 'fuji', css: 'contrast(1.25) saturate(1.4) hue-rotate(5deg)' },
+            { id: 'f_classic', name: 'Classic Chrome', cat: 'fuji', css: 'contrast(1.15) saturate(0.65) sepia(0.1) hue-rotate(-5deg)' },
+            { id: 'f_acros', name: 'Acros B&W', cat: 'fuji', css: 'grayscale(1) contrast(1.15) brightness(1.05)' },
+            { id: 'f_superia', name: 'Superia 400', cat: 'fuji', css: 'contrast(1.1) saturate(1.1) hue-rotate(15deg) sepia(0.1)' },
+            // Leica
+            { id: 'l_mono', name: 'Monochrom', cat: 'leica', css: 'grayscale(1) contrast(1.4) brightness(0.95)' },
+            { id: 'l_m10', name: 'M10 Color', cat: 'leica', css: 'contrast(1.15) saturate(1.05) brightness(0.98)' },
+            { id: 'l_vintage', name: 'M3 Vintage', cat: 'leica', css: 'contrast(1.05) saturate(0.6) sepia(0.2) hue-rotate(-5deg)' },
+            // Cinematic
+            { id: 'c_teal', name: 'Teal & Orange', cat: 'cine', css: 'contrast(1.2) saturate(1.3) hue-rotate(-15deg) sepia(0.1)' },
+            { id: 'c_moody', name: 'Moody Dark', cat: 'cine', css: 'contrast(1.3) saturate(0.7) brightness(0.8)' },
+            { id: 'c_blade', name: 'Blade Runner', cat: 'cine', css: 'contrast(1.3) saturate(1.2) sepia(0.4) hue-rotate(-10deg)' },
+            { id: 'c_noir', name: 'Film Noir', cat: 'cine', css: 'grayscale(1) contrast(1.5) brightness(0.8)' },
+            // Vintage
+            { id: 'v_polaroid', name: 'Polaroid', cat: 'vintage', css: 'contrast(0.9) saturate(0.8) sepia(0.3) hue-rotate(-10deg) brightness(1.1)' },
+            { id: 'v_sepia', name: '1920s Sepia', cat: 'vintage', css: 'sepia(1) contrast(0.9) brightness(0.9)' },
+            { id: 'v_vhs', name: 'VHS Tape', cat: 'vintage', css: 'contrast(1.1) saturate(1.2) sepia(0.1) blur(0.5px)' }
+        ];
+
+        // --- 4. UI INIT & RENDER FILTERS ---
+        function renderFilters(category = 'all') {
+            els.filterList.innerHTML = '';
+            const filtered = category === 'all' ? filters : filters.filter(f => f.cat === category || f.id === 'normal');
+            
+            filtered.forEach(f => {
+                const btn = document.createElement('button');
+                btn.className = `filter-btn bg-gray-700 hover:bg-gray-600 rounded-xl p-2 flex flex-col items-center justify-center min-w-[80px] ${state.currentFilter === f.id ? 'active' : ''}`;
+                btn.innerHTML = `
+                    <div class="w-14 h-14 rounded-lg bg-gray-500 mb-1.5 overflow-hidden relative shadow-inner">
+                        <div class="absolute inset-0" style="background: url('https://placehold.co/100x100/555/eee?text=Photo') center/cover; filter: ${f.css === 'none' ? '' : f.css};"></div>
+                    </div>
+                    <span class="text-[10px] md:text-xs text-gray-200 w-full truncate px-1 text-center font-medium">${f.name}</span>
+                `;
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.currentFilter = f.id;
+                    drawCanvas(); // Render ulang dengan filter baru
+                });
+                els.filterList.appendChild(btn);
+            });
+        }
+        
+        els.catBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                els.catBtns.forEach(b => b.className = 'cat-btn bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap');
+                e.target.className = 'cat-btn bg-blue-600 px-4 py-1.5 rounded-full text-xs font-semibold active whitespace-nowrap';
+                renderFilters(e.target.dataset.cat);
+            });
+        });
+        renderFilters(); // Initial load
+
+        // --- 5. WATERMARK TABS & INPUTS LOGIC ---
+        els.wmTabs.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                els.wmTabs.forEach(b => { b.classList.remove('active', 'text-blue-500'); b.classList.add('text-gray-400'); });
+                e.target.classList.remove('text-gray-400');
+                e.target.classList.add('active', 'text-blue-500');
+                
+                const targetId = e.target.dataset.target;
+                els.wmPanels.text.classList.add('hidden');
+                els.wmPanels.logo.classList.add('hidden');
+                document.getElementById(targetId).classList.remove('hidden');
+                
+                state.wm.type = targetId === 'panel-text' ? 'text' : 'logo';
+                updateWatermarkDOM();
+            });
+        });
+
+        // Event listener inputs teks
+        els.inText.addEventListener('input', e => { state.wm.text = e.target.value; updateWatermarkDOM(); });
+        els.inColorPicker.addEventListener('input', e => { state.wm.color = e.target.value; els.inColor.value = e.target.value; updateWatermarkDOM(); });
+        els.inColor.addEventListener('change', e => { 
+            if(/^#[0-9A-F]{6}$/i.test(e.target.value)) { state.wm.color = e.target.value; els.inColorPicker.value = e.target.value; updateWatermarkDOM(); }
+        });
+        els.inTextSize.addEventListener('input', e => { 
+            state.wm.textSizePx = parseInt(e.target.value); 
+            els.valTextSize.textContent = state.wm.textSizePx; 
+            updateWatermarkDOM(); 
+        });
+
+        // Event listener logo upload
+        els.inLogo.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            els.txtLogoName.textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    state.wm.logoImg = img;
+                    state.wm.type = 'logo'; // Paksa pindah tipe
+                    updateWatermarkDOM();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        els.inLogoScale.addEventListener('input', e => {
+            state.wm.logoScalePct = parseInt(e.target.value);
+            els.valLogoScale.textContent = `${e.target.value}%`;
+            updateWatermarkDOM();
+        });
+
+        els.inOpacity.addEventListener('input', e => {
+            state.wm.opacity = parseInt(e.target.value) / 100;
+            els.valOpacity.textContent = `${e.target.value}%`;
+            updateWatermarkDOM();
+        });
+
+
+        // --- 6. CORE: LOAD IMAGE & RENDER CANVAS ---
+        function enableControls() {
+            els.placeholder.style.display = 'none';
+            els.canvas.style.display = 'block';
+            els.wmLayer.style.display = 'block';
+            
+            els.btnEnhance.disabled = false;
+            els.btnDownload.disabled = false;
+            
+            // Enable WM inputs
+            els.inText.disabled = false; els.inColor.disabled = false; els.inColorPicker.disabled = false;
+            els.inTextSize.disabled = false; els.inOpacity.disabled = false;
+            els.inLogo.disabled = false; els.lblLogo.classList.remove('opacity-50', 'pointer-events-none');
+            els.inLogoScale.disabled = false;
+        }
+
+        function processNewImage(dataUrl) {
+            showLoading("Memuat Gambar High-Res...");
+            const img = new Image();
+            img.onload = () => {
+                state.originalImage = img;
+                
+                // Set resolusi ASLI ke canvas internal
+                els.canvas.width = img.width;
+                els.canvas.height = img.height;
+                
+                // Reset Enhance
+                state.isAutoEnhanced = false;
+                els.btnEnhance.classList.remove('bg-emerald-800', 'ring-2', 'ring-emerald-400');
+                state.enhance = { brightness: 1, contrast: 1, saturation: 1 };
+                
+                enableControls();
+                drawCanvas();
+                
+                // Setelah render, hitung display ratio agar watermark visual pas
+                setTimeout(calculateDisplayRatio, 50); 
+                hideLoading();
+            };
+            img.src = dataUrl;
+        }
+
+        els.uploadInput.addEventListener('change', e => {
+            if(e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = ev => processNewImage(ev.target.result);
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        function getFilterString() {
+            const f = filters.find(x => x.id === state.currentFilter);
+            let css = f.css !== 'none' ? f.css : '';
+            if (state.isAutoEnhanced) {
+                const eh = `brightness(${state.enhance.brightness}) contrast(${state.enhance.contrast}) saturate(${state.enhance.saturation})`;
+                css = `${eh} ${css}`.trim();
+            }
+            return css || 'none';
+        }
+
+        function drawCanvas() {
+            if(!state.originalImage) return;
+            const w = els.canvas.width;
+            const h = els.canvas.height;
+            
+            els.ctx.clearRect(0, 0, w, h);
+            els.ctx.filter = getFilterString();
+            els.ctx.drawImage(state.originalImage, 0, 0, w, h);
+            els.ctx.filter = 'none'; // reset filter context
+            
+            // Perbarui visual CSS canvas agar match
+            els.canvas.style.filter = getFilterString();
+        }
+
+        // --- 7. AUTO ENHANCE LOGIC ---
+        els.btnEnhance.addEventListener('click', () => {
+            if(!state.originalImage) return;
+            state.isAutoEnhanced = !state.isAutoEnhanced;
+            
+            if(state.isAutoEnhanced) {
+                showLoading("Menganalisa Cahaya & Warna...");
+                els.btnEnhance.classList.add('bg-emerald-800', 'ring-2', 'ring-emerald-400');
+                
+                setTimeout(() => {
+                    // Analisa sample kecil untuk kecepatan
+                    const temp = document.createElement('canvas');
+                    const tCtx = temp.getContext('2d');
+                    temp.width = els.canvas.width * 0.1; 
+                    temp.height = els.canvas.height * 0.1;
+                    tCtx.drawImage(state.originalImage, 0, 0, temp.width, temp.height);
+                    
+                    const data = tCtx.getImageData(0,0, temp.width, temp.height).data;
+                    let lum = 0;
+                    for(let i=0; i<data.length; i+=4) lum += (0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2]);
+                    const avgLum = (lum / (data.length/4)) / 255;
+                    
+                    if (avgLum < 0.4) {
+                        state.enhance.brightness = 1 + ((0.4 - avgLum) * 1.5);
+                        state.enhance.contrast = 1.1;
+                    } else if (avgLum > 0.7) {
+                        state.enhance.brightness = 0.9;
+                        state.enhance.contrast = 1.05;
+                    } else {
+                        state.enhance.brightness = 1.05;
+                        state.enhance.contrast = 1.05;
+                    }
+                    state.enhance.saturation = 0.85; // Sedikit sinematik desaturate
+                    
+                    drawCanvas();
+                    hideLoading();
+                }, 50);
+            } else {
+                els.btnEnhance.classList.remove('bg-emerald-800', 'ring-2', 'ring-emerald-400');
+                state.enhance = { brightness: 1, contrast: 1, saturation: 1 };
+                drawCanvas();
+            }
+        });
+
+
+        // --- 8. WATERMARK DOM (WYSIWYG) & DRAG LOGIC ---
+        function calculateDisplayRatio() {
+            if(!state.originalImage) return;
+            // Rasio = Lebar Tampilan di Layar / Lebar Resolusi Asli
+            // Digunakan untuk mengecilkan font/logo watermark saat diedit agar proporsional
+            state.displayRatio = els.canvas.clientWidth / els.canvas.width;
+            updateWatermarkDOM();
+        }
+        window.addEventListener('resize', () => { if(state.originalImage) calculateDisplayRatio(); });
+
+        function updateWatermarkDOM() {
+            if(!state.originalImage) return;
+            
+            // Transparansi umum
+            els.wmDragBox.style.opacity = state.wm.opacity;
+
+            if (state.wm.type === 'text') {
+                els.wmLogoDisplay.style.display = 'none';
+                els.wmTextDisplay.style.display = 'block';
+                
+                els.wmTextDisplay.textContent = state.wm.text || ' ';
+                els.wmTextDisplay.style.color = state.wm.color;
+                
+                // Ukuran font layar = Ukuran asli * rasio tampilan
+                const displayFontSize = state.wm.textSizePx * state.displayRatio;
+                els.wmTextDisplay.style.fontSize = `${Math.max(10, displayFontSize)}px`; // min 10px supaya bisa diklik
+                
+            } else if (state.wm.type === 'logo') {
+                els.wmTextDisplay.style.display = 'none';
+                els.wmLogoDisplay.style.display = 'block';
+                
+                if (state.wm.logoImg) {
+                    els.wmLogoDisplay.src = state.wm.logoImg.src;
+                    // Lebar di layar = (Persentase / 100) * Lebar Canvas Asli * Rasio Tampilan
+                    const displayWidth = (state.wm.logoScalePct / 100) * els.canvas.width * state.displayRatio;
+                    els.wmLogoDisplay.style.width = `${Math.max(20, displayWidth)}px`; // min 20px
+                }
+            }
+
+            // Update posisi box (berdasarkan persentase)
+            // Area container mengikuti ukuran els.canvas
+            const canvasRect = els.canvas.getBoundingClientRect();
+            const layerRect = els.wmLayer.getBoundingClientRect();
+            
+            // Hitung offset karena canvas di tengah wrapper (object-fit contain)
+            const offsetX = canvasRect.left - layerRect.left;
+            const offsetY = canvasRect.top - layerRect.top;
+
+            const xPx = offsetX + ((state.wm.x / 100) * canvasRect.width);
+            const yPx = offsetY + ((state.wm.y / 100) * canvasRect.height);
+            
+            els.wmDragBox.style.left = `${xPx}px`;
+            els.wmDragBox.style.top = `${yPx}px`;
+        }
+
+        // DRAG ENGINE (Mouse & Touch)
+        let isDragging = false;
+        let startCursorX, startCursorY, startObjX, startObjY;
+
+        function dragStart(e) {
+            if(!state.originalImage) return;
+            isDragging = true;
+            els.wmDragBox.classList.add('dragging');
+            
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            
+            startCursorX = clientX;
+            startCursorY = clientY;
+            
+            // Ambil offset posisi saat ini (dalam pixel relatif terhadap viewport layer)
+            startObjX = parseFloat(els.wmDragBox.style.left) || 0;
+            startObjY = parseFloat(els.wmDragBox.style.top) || 0;
+        }
+
+        function dragMove(e) {
+            if (!isDragging) return;
+            e.preventDefault(); // cegah scroll layar saat dragging
+
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            
+            const dx = clientX - startCursorX;
+            const dy = clientY - startCursorY;
+            
+            let newX = startObjX + dx;
+            let newY = startObjY + dy;
+
+            // Batasi gerak hanya di area canvas
+            const canvasRect = els.canvas.getBoundingClientRect();
+            const layerRect = els.wmLayer.getBoundingClientRect();
+            const offsetX = canvasRect.left - layerRect.left;
+            const offsetY = canvasRect.top - layerRect.top;
+
+            // Konversi posisi pixel baru ke persentase terhadap dimensi canvas asli
+            let pctX = ((newX - offsetX) / canvasRect.width) * 100;
+            let pctY = ((newY - offsetY) / canvasRect.height) * 100;
+            
+            // Clamp 0 - 100
+            pctX = Math.max(0, Math.min(pctX, 100));
+            pctY = Math.max(0, Math.min(pctY, 100));
+
+            state.wm.x = pctX;
+            state.wm.y = pctY;
+            
+            updateWatermarkDOM(); // Render ulang posisinya
+        }
+
+        function dragEnd() {
+            isDragging = false;
+            els.wmDragBox.classList.remove('dragging');
+        }
+
+        els.wmDragBox.addEventListener('mousedown', dragStart);
+        window.addEventListener('mousemove', dragMove);
+        window.addEventListener('mouseup', dragEnd);
+        
+        els.wmDragBox.addEventListener('touchstart', dragStart, {passive: false});
+        window.addEventListener('touchmove', dragMove, {passive: false});
+        window.addEventListener('touchend', dragEnd);
+
+
+        // --- 9. CAMERA LOGIC (WebRTC) ---
+        els.btnOpenCamera.addEventListener('click', async () => {
+            try {
+                // Request back camera preferrably for mobile
+                camStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                els.camVideo.srcObject = camStream;
+                els.camModal.classList.remove('hidden');
+                els.camModal.classList.add('flex');
+            } catch (err) {
+                alert("Tidak dapat mengakses kamera. Pastikan izin diberikan.");
+                console.error(err);
+            }
+        });
+
+        function closeCamera() {
+            if(camStream) {
+                camStream.getTracks().forEach(t => t.stop());
+                camStream = null;
+            }
+            els.camModal.classList.add('hidden');
+            els.camModal.classList.remove('flex');
+        }
+        els.btnCloseCam.addEventListener('click', closeCamera);
+
+        els.btnCapture.addEventListener('click', () => {
+            showLoading("Menyimpan Foto...");
+            const tempCanvas = document.createElement('canvas');
+            // Ambil dimensi asli video
+            tempCanvas.width = els.camVideo.videoWidth;
+            tempCanvas.height = els.camVideo.videoHeight;
+            const tCtx = tempCanvas.getContext('2d');
+            
+            // Gambar frame video ke canvas (dibalik horizontal jika perlu, tapi biasanya back camera tidak perlu dibalik. Kita ambil as is)
+            tCtx.drawImage(els.camVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+            
+            const dataUrl = tempCanvas.toDataURL('image/jpeg', 1.0); // Kualitas max
+            closeCamera();
+            processNewImage(dataUrl);
+        });
+
+
+        // --- 10. EXPORT HIGH-RES LOGIC ---
+        els.btnDownload.addEventListener('click', () => {
+            if(!state.originalImage) return;
+            showLoading("Mengekspor High-Res (Jangan tutup layar)...");
+            
+            setTimeout(() => {
+                // 1. Buat Canvas Ekspor dengan Resolusi Asli
+                const expCanvas = document.createElement('canvas');
+                expCanvas.width = els.canvas.width;
+                expCanvas.height = els.canvas.height;
+                const eCtx = expCanvas.getContext('2d');
+                
+                // 2. Gambar Foto + Filter
+                eCtx.filter = getFilterString();
+                eCtx.drawImage(state.originalImage, 0, 0, expCanvas.width, expCanvas.height);
+                eCtx.filter = 'none'; // reset filter
+                
+                // 3. Set Global Alpha untuk Watermark
+                eCtx.globalAlpha = state.wm.opacity;
+                
+                // 4. Hitung Posisi absolut pada canvas High-Res
+                const xPx = (state.wm.x / 100) * expCanvas.width;
+                const yPx = (state.wm.y / 100) * expCanvas.height;
+                
+                // padding konversi (dari 4px di CSS draggable border padding)
+                const pad = 4 / state.displayRatio;
+
+                if (state.wm.type === 'text' && state.wm.text.trim()) {
+                    // Gambar Text
+                    eCtx.font = `bold ${state.wm.textSizePx}px Inter, sans-serif`;
+                    eCtx.textBaseline = 'top';
+                    eCtx.fillStyle = state.wm.color;
+                    
+                    // Shadow text
+                    eCtx.shadowColor = `rgba(0, 0, 0, 0.6)`;
+                    eCtx.shadowBlur = 3 / state.displayRatio;
+                    eCtx.shadowOffsetX = 1 / state.displayRatio;
+                    eCtx.shadowOffsetY = 1 / state.displayRatio;
+                    
+                    eCtx.fillText(state.wm.text, xPx + pad, yPx + pad);
+                    eCtx.shadowColor = 'transparent'; // reset
+                    
+                } else if (state.wm.type === 'logo' && state.wm.logoImg) {
+                    // Gambar Logo
+                    const wLogo = (state.wm.logoScalePct / 100) * expCanvas.width;
+                    const ratio = state.wm.logoImg.height / state.wm.logoImg.width;
+                    const hLogo = wLogo * ratio;
+                    
+                    // Shadow opsional untuk logo
+                    eCtx.shadowColor = `rgba(0, 0, 0, 0.4)`;
+                    eCtx.shadowBlur = 3 / state.displayRatio;
+                    
+                    eCtx.drawImage(state.wm.logoImg, xPx + pad, yPx + pad, wLogo, hLogo);
+                    eCtx.shadowColor = 'transparent'; // reset
+                }
+                
+                eCtx.globalAlpha = 1.0; // reset
+                
+                // 5. Download Trigger
+                try {
+                    const dataUrl = expCanvas.toDataURL('image/jpeg', 0.98); // Kualitas 98%
+                    const link = document.createElement('a');
+                    link.download = `Lumiere_Pro_${Date.now()}.jpg`;
+                    link.href = dataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (e) {
+                    console.error("Gagal mengekspor:", e);
+                    alert("Terjadi kesalahan saat menyimpan gambar. Silakan coba lagi.");
+                }
+                
+                hideLoading();
+            }, 100); // delay agar UI loading muncul
+        });
+
+
+        // --- UTILS ---
+        function showLoading(msg) {
+            els.loadingText.textContent = msg;
+            els.loadingOverlay.classList.remove('hidden');
+            els.loadingOverlay.classList.add('flex');
+        }
+        function hideLoading() {
+            els.loadingOverlay.classList.add('hidden');
+            els.loadingOverlay.classList.remove('flex');
+        }
+
+    </script>
+</body>
+</html>
