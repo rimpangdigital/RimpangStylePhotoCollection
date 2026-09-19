@@ -139,35 +139,33 @@
 </head>
 <body class="min-h-screen flex flex-col pt-4 pb-8 px-4 md:px-8">
 
-    <div id="camera-modal" class="fixed inset-0 z-50 modal-overlay hidden flex-col justify-center items-center p-4">
-        <div class="bg-[#1a1d24] p-4 rounded-2xl w-full max-w-2xl border border-gray-700 shadow-2xl relative">
-            
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-white flex items-center"><i class="fas fa-camera mr-2 text-blue-500"></i> Jepret Foto</h3>
-                <!-- Tombol Putar Kamera -->
-                <button id="flip-camera-btn" class="bg-gray-800 hover:bg-gray-700 text-white rounded-full p-2.5 w-10 h-10 flex items-center justify-center transition shadow-lg border border-gray-600">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
-            </div>
+    <div id="camera-modal" class="fixed inset-0 z-50 bg-black hidden flex-col justify-center items-center">
+        
+        <!-- Video Fullscreen -->
+        <video id="camera-video" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
+        
+        <!-- Header Controls -->
+        <div class="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-10 bg-gradient-to-b from-black/50 to-transparent">
+            <button id="close-camera-btn" class="bg-gray-800/80 hover:bg-gray-700 text-white rounded-full w-12 h-12 flex items-center justify-center transition shadow-lg border border-white/20 backdrop-blur">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <button id="flip-camera-btn" class="bg-gray-800/80 hover:bg-gray-700 text-white rounded-full w-12 h-12 flex items-center justify-center transition shadow-lg border border-white/20 backdrop-blur">
+                <i class="fas fa-sync-alt text-lg"></i>
+            </button>
+        </div>
 
-            <div class="relative bg-black rounded-lg overflow-hidden flex justify-center w-full aspect-video md:aspect-auto md:h-[60vh]">
-                <!-- Video Element (akan disesuaikan transform-nya via JS) -->
-                <video id="camera-video" autoplay playsinline class="w-full h-full object-cover"></video>
-                
-                <!-- Kontrol Zoom Overlay -->
-                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2 bg-black/60 p-1.5 rounded-full backdrop-blur border border-white/10">
-                    <button class="cam-zoom-btn active rounded-full w-10 h-10 text-xs font-bold text-white bg-blue-600 shadow-lg" data-zoom="1">1x</button>
-                    <button class="cam-zoom-btn rounded-full w-10 h-10 text-xs font-bold text-white hover:bg-white/20 transition" data-zoom="2">2x</button>
-                    <button class="cam-zoom-btn rounded-full w-10 h-10 text-xs font-bold text-white hover:bg-white/20 transition" data-zoom="3">3x</button>
-                </div>
-            </div>
+        <!-- Kontrol Zoom Overlay -->
+        <div class="absolute bottom-32 left-1/2 -translate-x-1/2 z-10 flex gap-2 bg-black/60 p-1.5 rounded-full backdrop-blur border border-white/20">
+            <button class="cam-zoom-btn active rounded-full w-12 h-12 text-sm font-bold text-white bg-blue-600 shadow-lg" data-zoom="1">1x</button>
+            <button class="cam-zoom-btn rounded-full w-12 h-12 text-sm font-bold text-white hover:bg-white/20 transition" data-zoom="2">2x</button>
+            <button class="cam-zoom-btn rounded-full w-12 h-12 text-sm font-bold text-white hover:bg-white/20 transition" data-zoom="3">3x</button>
+        </div>
 
-            <div class="mt-6 flex gap-3 justify-center">
-                <button id="close-camera-btn" class="px-5 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-semibold flex-1 md:flex-none transition-colors text-white">Batal</button>
-                <button id="capture-btn" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold flex-1 md:flex-none flex items-center justify-center transition-colors shadow-lg shadow-blue-600/30 text-white">
-                    <i class="fas fa-dot-circle mr-2"></i> Ambil Gambar
-                </button>
-            </div>
+        <!-- Tombol Jepret -->
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
+            <button id="capture-btn" class="w-16 h-16 bg-white rounded-full border-4 border-gray-300 flex items-center justify-center shadow-xl hover:bg-gray-200 active:scale-95 transition-all">
+                <div class="w-14 h-14 bg-transparent border-2 border-black rounded-full"></div>
+            </button>
         </div>
     </div>
 
@@ -262,8 +260,11 @@
                         <p class="text-xs text-gray-400 mb-4 leading-relaxed">Terapkan profil warna gaya retro dan film klasik.</p>
                         <div class="flex gap-2 mb-4 overflow-x-auto custom-scroll pb-2" id="filter-categories">
                             <button class="cat-btn bg-blue-600 px-3 py-1 rounded-md text-xs font-semibold active whitespace-nowrap" data-cat="all">Semua</button>
+                            <button class="cat-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap" data-cat="cam">Kamera</button>
+                            <button class="cat-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap" data-cat="80s">80s</button>
+                            <button class="cat-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap" data-cat="90s">90s</button>
                             <button class="cat-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap" data-cat="film">Film Klasik</button>
-                            <button class="cat-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap" data-cat="retro">Retro/90s</button>
+                            <button class="cat-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap" data-cat="retro">Retro Mix</button>
                             <button class="cat-btn bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap" data-cat="cine">Cinematic</button>
                         </div>
                         <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3" id="filter-list"></div>
@@ -292,14 +293,18 @@
                                 <label class="block text-xs font-medium text-gray-400 mb-1.5">Keterangan / Caption</label>
                                 <input type="text" id="pt-caption" placeholder="Sebuah hari yang cerah..." class="w-full bg-[#0f1115] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500 transition-all">
                             </div>
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-3 gap-3">
                                 <div>
                                     <label class="block text-xs font-medium text-gray-400 mb-1.5">Lokasi</label>
                                     <input type="text" id="pt-loc" placeholder="Singapura" class="w-full bg-[#0f1115] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium text-gray-400 mb-1.5">Tanggal</label>
-                                    <input type="text" id="pt-date" placeholder="1998" class="w-full bg-[#0f1115] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                                    <input type="text" id="pt-date" placeholder="24 Ags" class="w-full bg-[#0f1115] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-400 mb-1.5">Tahun</label>
+                                    <input type="text" id="pt-year" placeholder="1998" class="w-full bg-[#0f1115] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
                                 </div>
                             </div>
                             
@@ -417,6 +422,7 @@
                 caption: '',
                 location: '',
                 date: '',
+                year: '',
                 sizePct: 3.5, 
                 color: '#111111', 
                 x: 50, 
@@ -467,11 +473,12 @@
             ptCaptionDisplay: document.getElementById('pt-caption-display'),
             ptLocDateDisplay: document.getElementById('pt-locdate-display'),
             
-            // Tabs & Input UI...
+            // Tabs & Panels
             mainTabs: document.querySelectorAll('.main-tab-btn'),
             panels: document.querySelectorAll('.panel-content'),
             wmTabs: document.querySelectorAll('.tab-btn'),
             
+            // Watermark Inputs
             wmOptText: document.getElementById('wm-opt-text'),
             wmOptLogo: document.getElementById('wm-opt-logo'),
             inText: document.getElementById('wm-text'),
@@ -487,25 +494,68 @@
             inOpacity: document.getElementById('wm-opacity'),
             valOpacity: document.getElementById('wm-opacity-val'),
             
+            // Polaroid Text Inputs
             ptSettings: document.getElementById('polaroid-text-settings'),
             inPtCap: document.getElementById('pt-caption'),
             inPtLoc: document.getElementById('pt-loc'),
             inPtDate: document.getElementById('pt-date'),
+            inPtYear: document.getElementById('pt-year'),
             inPtSize: document.getElementById('pt-size'),
             valPtSize: document.getElementById('pt-size-val'),
             inPtColor: document.getElementById('pt-color'),
 
+            // Frame Size Input
             frameSettings: document.getElementById('frame-size-settings'),
             inFrameScale: document.getElementById('frame-scale'),
             valFrameScale: document.getElementById('frame-scale-val'),
             
+            // Lists & Categories
             filterList: document.getElementById('filter-list'),
             frameList: document.getElementById('frame-list'),
             catBtns: document.querySelectorAll('.cat-btn')
         };
 
+        let camStream = null; 
+
         const filters = [
             { id: 'normal', name: 'Original', cat: 'all', css: 'none' },
+            
+            // KAMERA TERKENAL (10)
+            { id: 'cam_leica_m6', name: 'Leica M6 B&W', cat: 'cam', css: 'grayscale(1) contrast(1.4) brightness(0.9)' },
+            { id: 'cam_hasselblad', name: 'Hasselblad 500', cat: 'cam', css: 'contrast(1.1) saturate(1.2) sepia(0.1)' },
+            { id: 'cam_polaroid_sx70', name: 'Polaroid SX-70', cat: 'cam', css: 'contrast(0.9) saturate(1.5) sepia(0.4) hue-rotate(-15deg)' },
+            { id: 'cam_kodak_ektar', name: 'Kodak Ektar', cat: 'cam', css: 'contrast(1.25) saturate(1.4) hue-rotate(-5deg)' },
+            { id: 'cam_fuji_instax', name: 'Fuji Instax', cat: 'cam', css: 'contrast(0.85) saturate(1.1) brightness(1.1) sepia(0.1)' },
+            { id: 'cam_canon_ae1', name: 'Canon AE-1', cat: 'cam', css: 'contrast(1.1) saturate(0.9) sepia(0.15) hue-rotate(5deg)' },
+            { id: 'cam_nikon_f3', name: 'Nikon F3', cat: 'cam', css: 'contrast(1.3) saturate(1.1) brightness(0.95)' },
+            { id: 'cam_olympus_mju', name: 'Olympus MJU', cat: 'cam', css: 'contrast(1.2) saturate(1.2) brightness(1.1)' },
+            { id: 'cam_pentax_k1000', name: 'Pentax K1000', cat: 'cam', css: 'contrast(1.05) saturate(0.8) sepia(0.2) hue-rotate(-10deg)' },
+            { id: 'cam_lomo_lca', name: 'Lomo LC-A', cat: 'cam', css: 'contrast(1.5) saturate(1.6) brightness(0.9) hue-rotate(-20deg)' },
+
+            // RETRO 80s (10)
+            { id: '80s_neon', name: '80s Neon', cat: '80s', css: 'contrast(1.4) saturate(2) hue-rotate(30deg) brightness(1.1)' },
+            { id: '80s_vhs', name: 'VHS Classic', cat: '80s', css: 'contrast(1.2) saturate(1.5) sepia(0.3) hue-rotate(-20deg) blur(0.5px)' },
+            { id: '80s_miami', name: 'Miami Vice', cat: '80s', css: 'contrast(1.1) saturate(1.8) hue-rotate(-30deg) sepia(0.2)' },
+            { id: '80s_synthwave', name: 'Synthwave', cat: '80s', css: 'contrast(1.2) saturate(1.4) hue-rotate(290deg) sepia(0.2)' },
+            { id: '80s_mall', name: '1980s Mall', cat: '80s', css: 'contrast(0.9) saturate(0.7) sepia(0.4) brightness(1.2)' },
+            { id: '80s_polaroid600', name: 'Polaroid 600', cat: '80s', css: 'contrast(1.15) saturate(1.2) sepia(0.2) hue-rotate(-5deg) brightness(1.05)' },
+            { id: '80s_arcade', name: 'Arcade Glow', cat: '80s', css: 'contrast(1.5) saturate(1.8) brightness(0.9)' },
+            { id: '80s_disco', name: 'Disco Fever', cat: '80s', css: 'contrast(1.2) saturate(1.5) hue-rotate(15deg) sepia(0.1)' },
+            { id: '80s_betamax', name: 'Betamax', cat: '80s', css: 'contrast(0.8) saturate(1.2) sepia(0.5) hue-rotate(-15deg) blur(1px)' },
+            { id: '80s_summer', name: '80s Summer', cat: '80s', css: 'contrast(1.1) saturate(1.4) sepia(0.3) hue-rotate(-10deg) brightness(1.1)' },
+
+            // RETRO 90s (10)
+            { id: '90s_camcorder', name: '90s Camcorder', cat: '90s', css: 'contrast(1.1) saturate(0.8) sepia(0.1) brightness(0.95)' },
+            { id: '90s_disposable', name: 'Disposable Flash', cat: '90s', css: 'contrast(1.3) saturate(1.2) brightness(1.15)' },
+            { id: '90s_grunge', name: 'Grunge Era', cat: '90s', css: 'contrast(1.4) saturate(0.5) sepia(0.2) hue-rotate(10deg)' },
+            { id: '90s_skater', name: 'Skater Punk', cat: '90s', css: 'contrast(1.5) saturate(1.4) brightness(0.9) hue-rotate(-15deg)' },
+            { id: '90s_y2k', name: 'Y2K Silver', cat: '90s', css: 'contrast(1.2) saturate(0.3) brightness(1.1) sepia(0.1) hue-rotate(180deg)' },
+            { id: '90s_teen_mag', name: 'Teen Magazine', cat: '90s', css: 'contrast(1.1) saturate(1.6) brightness(1.1)' },
+            { id: '90s_gameboy', name: 'Gameboy Cam', cat: '90s', css: 'grayscale(1) contrast(1.5) sepia(1) hue-rotate(70deg) brightness(0.8)' },
+            { id: '90s_pastel', name: '90s Pastel', cat: '90s', css: 'contrast(0.9) saturate(1.1) sepia(0.1) brightness(1.1) hue-rotate(20deg)' },
+            { id: '90s_mtv', name: 'MTV Indie', cat: '90s', css: 'contrast(1.3) saturate(0.9) sepia(0.2) hue-rotate(330deg)' },
+            { id: '90s_izone', name: 'Polaroid i-Zone', cat: '90s', css: 'contrast(1.1) saturate(1.3) sepia(0.1) brightness(1.05)' },
+
             // FILM
             { id: 'f_kodak_portra', name: 'Portra 400', cat: 'film', css: 'contrast(1.05) saturate(1.1) sepia(0.1) hue-rotate(-5deg)' },
             { id: 'f_kodak_gold', name: 'Kodak Gold', cat: 'film', css: 'contrast(1.1) saturate(1.25) sepia(0.15) hue-rotate(5deg)' },
@@ -634,13 +684,10 @@
         
         function checkFrameDependencies() {
             const frame = frames.find(f => f.id === state.currentFrame);
-            if (frame && frame.type === 'polaroid') {
-                els.ptSettings.classList.remove('hidden');
-                els.dragPT.style.display = 'flex';
-            } else {
-                els.ptSettings.classList.add('hidden');
-                els.dragPT.style.display = 'none';
-            }
+            
+            // Teks keterangan selalu aktif, tidak tergantung pada jenis bingkai
+            els.ptSettings.classList.remove('hidden');
+            els.dragPT.style.display = 'flex';
 
             if (frame && frame.id !== 'none') {
                 els.frameSettings.classList.remove('hidden');
@@ -687,11 +734,13 @@
             state.pText.caption = els.inPtCap.value;
             state.pText.location = els.inPtLoc.value;
             state.pText.date = els.inPtDate.value;
+            state.pText.year = els.inPtYear.value;
             updateOverlaysDOM();
         };
         els.inPtCap.addEventListener('input', updatePt);
         els.inPtLoc.addEventListener('input', updatePt);
         els.inPtDate.addEventListener('input', updatePt);
+        els.inPtYear.addEventListener('input', updatePt);
         
         els.inPtSize.addEventListener('input', e => { state.pText.sizePct = parseFloat(e.target.value); els.valPtSize.textContent = `${state.pText.sizePct}%`; updateOverlaysDOM(); });
         els.inPtColor.addEventListener('input', e => { state.pText.color = e.target.value; updateOverlaysDOM(); });
@@ -867,25 +916,20 @@
             els.dragWM.style.left = `${wmXPx}px`;
             els.dragWM.style.top = `${wmYPx}px`;
 
-            // 2. Polaroid Text Update
-            const frame = frames.find(f => f.id === state.currentFrame);
-            if (frame && frame.type === 'polaroid') {
-                els.dragPT.style.display = 'flex';
-                els.dragPT.style.color = state.pText.color;
-                const ptPxSize = els.canvas.width * (state.pText.sizePct / 100);
-                els.dragPT.style.fontSize = `${Math.max(10, ptPxSize * state.displayRatio)}px`;
-                
-                els.ptCaptionDisplay.textContent = state.pText.caption;
-                const locDateStr = [state.pText.location, state.pText.date].filter(Boolean).join(' • ');
-                els.ptLocDateDisplay.textContent = locDateStr;
-                
-                const ptXPx = offsetX + ((state.pText.x / 100) * canvasRect.width);
-                const ptYPx = offsetY + ((state.pText.y / 100) * canvasRect.height);
-                els.dragPT.style.left = `${ptXPx}px`;
-                els.dragPT.style.top = `${ptYPx}px`;
-            } else {
-                els.dragPT.style.display = 'none';
-            }
+            // 2. Polaroid Text Update (Selalu aktif untuk semua bingkai)
+            els.dragPT.style.display = 'flex';
+            els.dragPT.style.color = state.pText.color;
+            const ptPxSize = els.canvas.width * (state.pText.sizePct / 100);
+            els.dragPT.style.fontSize = `${Math.max(10, ptPxSize * state.displayRatio)}px`;
+            
+            els.ptCaptionDisplay.textContent = state.pText.caption;
+            const locDateStr = [state.pText.location, state.pText.date, state.pText.year].filter(Boolean).join(' • ');
+            els.ptLocDateDisplay.textContent = locDateStr;
+            
+            const ptXPx = offsetX + ((state.pText.x / 100) * canvasRect.width);
+            const ptYPx = offsetY + ((state.pText.y / 100) * canvasRect.height);
+            els.dragPT.style.left = `${ptXPx}px`;
+            els.dragPT.style.top = `${ptYPx}px`;
         }
 
         let activeDragTarget = null;
@@ -1136,9 +1180,8 @@
                 }
                 eCtx.globalAlpha = 1.0;
                 
-                // 2. Draw Polaroid Text
-                const frame = frames.find(f => f.id === state.currentFrame);
-                if (frame && frame.type === 'polaroid' && (state.pText.caption || state.pText.date || state.pText.location)) {
+                // 2. Draw Polaroid Text (Diterapkan ke semua mode)
+                if (state.pText.caption || state.pText.date || state.pText.location || state.pText.year) {
                     const px = (state.pText.x / 100) * expCanvas.width;
                     const py = (state.pText.y / 100) * expCanvas.height;
                     const pFontSize = expCanvas.width * (state.pText.sizePct / 100);
@@ -1155,7 +1198,7 @@
                         currentY += pFontSize * 1.3;
                     }
                     
-                    const locDate = [state.pText.location, state.pText.date].filter(Boolean).join(' • ');
+                    const locDate = [state.pText.location, state.pText.date, state.pText.year].filter(Boolean).join(' • ');
                     if (locDate) {
                         eCtx.font = `${pFontSize * 0.85}px 'Special Elite', monospace`; 
                         eCtx.fillText(locDate, px, currentY);
